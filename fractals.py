@@ -1,10 +1,12 @@
 import math
 import time
+import threading
+import numpy as np
+from numba import njit
 from random import choice
+from PIL import Image, ImageDraw
 
-
-def __init__(self, x, y):
-    self.coord = (x, y)
+gradient = []
 
 
 def do_polygon(k, l, coord):
@@ -68,22 +70,56 @@ def do_square_1(nodes):
         yield pt
 
 
-def do_mandelbrot(x1, y1, x2, y2):
+@njit(fastmath=True)
+def do_mandelbrot(x1, y1, x2, y2, exp):
     for i in range(x2 - x1):
-        for j in range(y2 - y1):
-            if recurs(0, complex((4 * i) / ((x2 - x1)) - 2, (4 * j) / ((y2 - y1)) - 2),
-                      100):  # some 'magic' numbers, they  are responsible for the considered part of the complex plane
+        #print(i)
+        for j in range(math.floor((y2 - y1) / 2) + 1):
+            yield i, j, i, y2 - j, check_for_occurrence(0, complex((3 * i) / (x2 - x1) - 2, (3 * j) / (y2 - y1) - 1.5),
+                                                        2, exp)
+
+
+def do_julia(x1, y1, x2, y2, c, exp, n):
+    for i in range(x2 - x1 + 1):
+        print(i)
+        for j in range(y2 - y1 + 1):
+            if check_for_occurrence(complex((2.3 * i) / (x2 - x1) - 1.1, (2.3 * j) / (y2 - y1) - 1.1), c, exp,
+                                    n):
+                # some 'magic' numbers, they  are responsible for the considered part of the complex plane
                 yield i, j
 
 
+# recurs(0, complex((3 * i) / ((x2 - x1)) - 2, (3 * j) / ((y2 - y1)) - 1.5), 100):
+
+'''
 def recurs(z, c, n):
     n -= 1
     while n > 0:
-        z = z * z + c
-        if abs(z) > 2:
+        z = z*z-0.2+0.75j
+        if abs(z) > 5:  # <=> abs(z)>2, z.real*z.real + z.imag*z.imag > 4
             return False
         if recurs(z, c, n):
             return True
         else:
             return False
     return True
+'''
+
+
+@njit(fastmath=True, cache=True)
+def check_for_occurrence(z, c, exp, n):  # z^5 - 0.549653 + 0.003j, beautiful
+    x, y = z.real, z.imag
+    if x >= math.sqrt((x - 0.25) * (x - 0.25) + y * y) - 2 * ((x - 0.25) * (x - 0.25) + y * y) + 0.25 or (x + 1) * (
+            x + 1) + y * y <= 0.0625:
+        return n
+    k = 0
+    for i in range(n):
+        z = z * z + c
+        if k == z:
+            return n
+        z = z * z + c
+        k = z
+        if z.real * z.real + z.imag * z.imag > 4:
+            return i
+    return n
+# 2:35-3:23:16 48k:48k:1k
